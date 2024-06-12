@@ -222,6 +222,7 @@ class EGNN(nn.Module):
             nn.init.normal_(module.weight, std = self.init_eps)
 
     def forward(self, feats, coors, edges = None, mask = None, adj_mat = None):
+        print(*feats.shape)
         b, n, d, device, fourier_features, num_nearest, valid_radius, only_sparse_neighbors = *feats.shape, feats.device, self.fourier_features, self.num_nearest_neighbors, self.valid_radius, self.only_sparse_neighbors
 
         if exists(mask):

@@ -118,6 +118,7 @@ class EGNN_Sparse(MessagePassing):
         dropout = 0.,
         coor_weights_clamp_value = None, 
         aggr = "add",
+        out_dim=None,
         **kwargs
     ):
         assert aggr in {'add', 'sum', 'max', 'mean'}, 'pool method must be a valid option'
@@ -135,7 +136,9 @@ class EGNN_Sparse(MessagePassing):
         self.update_coors = update_coors
         self.update_feats = update_feats
         self.coor_weights_clamp_value = None
-
+        if out_dim ==None:
+            out_dim = feats_dim
+        self.out_dim = out_dim
         self.edge_input_dim = (fourier_features * 2) + edge_attr_dim + 1 + (feats_dim * 2)
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
 
@@ -144,11 +147,11 @@ class EGNN_Sparse(MessagePassing):
             nn.Linear(self.edge_input_dim, self.edge_input_dim * 2),
             self.dropout,
             SiLU(),
-            nn.Linear(self.edge_input_dim * 2, m_dim),
+            nn.Linear(self.edge_input_dim * 2, self.m_dim),
             SiLU()
         )
 
-        self.edge_weight = nn.Sequential(nn.Linear(m_dim, 1), 
+        self.edge_weight = nn.Sequential(nn.Linear(self.m_dim, 1), 
                                          nn.Sigmoid()
         ) if soft_edge else None
 
@@ -157,10 +160,10 @@ class EGNN_Sparse(MessagePassing):
         self.coors_norm = CoorsNorm(scale_init = norm_coors_scale_init) if norm_coors else nn.Identity()
 
         self.node_mlp = nn.Sequential(
-            nn.Linear(feats_dim + m_dim, feats_dim * 2),
+            nn.Linear(self.feats_dim +self.m_dim, self.feats_dim * 2),
             self.dropout,
             SiLU(),
-            nn.Linear(feats_dim * 2, feats_dim),
+            nn.Linear(self.feats_dim * 2, self.out_dim),
         ) if update_feats else None
 
         # COORS
@@ -200,6 +203,9 @@ class EGNN_Sparse(MessagePassing):
             rel_dist = rearrange(rel_dist, 'n () d -> n d')
 
         if exists(edge_attr):
+            if edge_attr.dim() == 1:
+                edge_attr = edge_attr.unsqueeze(-1)
+                
             edge_attr_feats = torch.cat([edge_attr, rel_dist], dim=-1)
         else:
             edge_attr_feats = rel_dist
@@ -259,7 +265,7 @@ class EGNN_Sparse(MessagePassing):
 
             hidden_feats = self.node_norm(kwargs["x"], kwargs["batch"]) if self.node_norm else kwargs["x"]
             hidden_out = self.node_mlp( torch.cat([hidden_feats, m_i], dim = -1) )
-            hidden_out = kwargs["x"] + hidden_out
+            hidden_out = hidden_out
         else: 
             hidden_out = kwargs["x"]
 
