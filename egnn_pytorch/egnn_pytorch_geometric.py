@@ -252,7 +252,7 @@ class EGNN_Sparse(MessagePassing):
             kwargs["rel_coors"] = self.coors_norm(kwargs["rel_coors"])
 
             mhat_i = self.aggregate(coor_wij * kwargs["rel_coors"], **aggr_kwargs)
-            coors_out = kwargs["coors"] + mhat_i
+            coors_out = mhat_i#kwargs["coors"] + mhat_i
         else:
             coors_out = kwargs["coors"]
 
