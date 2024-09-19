@@ -179,7 +179,7 @@ class EGNN_Sparse(MessagePassing):
     def init_(self, module):
         if type(module) in {nn.Linear}:
             # seems to be needed to keep the network from exploding to NaN with greater depths
-            nn.init.xavier_normal_(module.weight)
+            nn.init.xavier_normal_(module.weight,gain=0.5)
             nn.init.zeros_(module.bias)
 
     def forward(self, x: Tensor, edge_index: Adj,
